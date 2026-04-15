@@ -1,499 +1,470 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5899C1DJM0"></script>
-  <script defer src="https://umami.lazygyu.net/script.js" data-website-id="205aee0d-30b6-4c69-a053-0c72c8377be0"></script>
-
-  <title>Marble Roulette</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="apple-touch-icon" sizes="57x57" href="assets/apple-icon-57x57.png">
-  <link rel="apple-touch-icon" sizes="60x60" href="assets/apple-icon-60x60.png">
-  <link rel="apple-touch-icon" sizes="72x72" href="assets/apple-icon-72x72.png">
-  <link rel="apple-touch-icon" sizes="76x76" href="assets/apple-icon-76x76.png">
-  <link rel="apple-touch-icon" sizes="114x114" href="assets/apple-icon-114x114.png">
-  <link rel="apple-touch-icon" sizes="120x120" href="assets/apple-icon-120x120.png">
-  <link rel="apple-touch-icon" sizes="144x144" href="assets/apple-icon-144x144.png">
-  <link rel="apple-touch-icon" sizes="152x152" href="assets/apple-icon-152x152.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-icon-180x180.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="assets/android-icon-192x192.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="96x96" href="assets/favicon-96x96.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
-  <link rel="manifest" href="assets/manifest.json">
-
-  <meta name="msapplication-TileColor" content="#ffffff">
-  <meta name="msapplication-TileImage" content="assets/ms-icon-144x144.png">
-  <meta name="theme-color" content="#ffffff">
-
-  <meta name="description" content="A lucky draw by dropping marbles, made by lazygyu">
-  <meta property="og:url" content="https://lazygyu.github.io/roulette/">
-  <meta property="og:title" content="Marble Roulette">
-  <meta property="og:description" content="A lucky draw by dropping marbles, made by lazygyu">
-  <meta property="og:site_name" content="lazygyu.github.io">
-  <meta property="og:type" content="website">
-
-  <link rel='stylesheet' href='assets/style.scss' />
-</head>
-<body>
-<script type="module" src="./src/index.ts"></script>
-<script type="text/javascript">
-  window.dataLayer = window.dataLayer || [];
-
-  function gtag() {
-    dataLayer.push(arguments);
-  }
-
-  gtag('js', new Date());
-  gtag('config', 'G-5899C1DJM0');
-
-  function getNames() {
-    const value = document.querySelector('#in_names').value.trim();
-    return value.split(/[,\r\n]/g).map(v => v.trim()).filter(v => !!v);
-  }
-
-  function parseName(nameStr) {
-    const weightRegex = /(\/\d+)/;
-    const countRegex = /(\*\d+)/;
-    const hasWeight = weightRegex.test(nameStr);
-    const hasCount = countRegex.test(nameStr);
-    const name = /^\s*([^\/*]+)?/.exec(nameStr)[1];
-    const weight = hasWeight ? parseInt(weightRegex.exec(nameStr)[1].replace('/', '')) : 1;
-    const count = hasCount ? parseInt(countRegex.exec(nameStr)[1].replace('*', '')) : 1;
-    return {
-      name,
-      weight,
-      count,
-    };
-  }
-
-  function getReady() {
-    const names = getNames();
-    window.roulette.setMarbles(names);
-    ready = names.length > 0;
-    localStorage.setItem('mbr_names', names.join(','));
-    switch (winnerType) {
-      case 'first':
-        setWinnerRank(1);
-        break;
-      case 'last':
-        const total = window.roulette.getCount();
-        setWinnerRank(total);
-        break;
-    }
-  }
-
-  function setWinnerRank(rank) {
-    document.querySelector('#in_winningRank').value = rank;
-    window.options.winningRank = rank - 1;
-    window.roulette.setWinningRank(window.options.winningRank);
-
-    if (winnerType === 'first') {
-      document.querySelector('.btn-first-winner').classList.toggle('active', true);
-      document.querySelector('.btn-last-winner').classList.toggle('active', false);
-      document.querySelector('#in_winningRank').classList.toggle('active', false);
-    } else if (winnerType === 'last') {
-      document.querySelector('.btn-first-winner').classList.toggle('active', false);
-      document.querySelector('.btn-last-winner').classList.toggle('active', true);
-      document.querySelector('#in_winningRank').classList.toggle('active', false);
-    } else if (winnerType === 'custom') {
-      document.querySelector('.btn-first-winner').classList.toggle('active', false);
-      document.querySelector('.btn-last-winner').classList.toggle('active', false);
-      document.querySelector('#in_winningRank').classList.toggle('active', true);
-    }
-  }
-
-
-  let ready = false;
-  let winnerType = 'first';
-
-  document.addEventListener('DOMContentLoaded', () => {
-    initialize();
-  });
-
-  function initialize() {
-    if (!window.roulette || !window.roulette.isReady) {
-      console.log('does not loaded yet');
-      setTimeout(initialize, 100);
-      return;
-    }
-    console.log('initializing start');
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const namesFromUrl = urlParams.get('names');
-
-    if (namesFromUrl) {
-      document.querySelector('#in_names').value = namesFromUrl.replace(/,/g, '\n');
-    } else {
-      const savedNames = localStorage.getItem('mbr_names');
-      if (savedNames) {
-        document.querySelector('#in_names').value = savedNames;
-      }
-    }
-    document.querySelector('#in_names').addEventListener('input', () => {
-      getReady();
-    });
-
-    document.querySelector('#in_names').addEventListener('blur', () => {
-      const nameSource = getNames();
-      const nameSet = new Set();
-      const nameCounts = {};
-      nameSource.forEach(nameSrc => {
-        const name = parseName(nameSrc);
-        const key = name.weight > 1 ? `${name.name}/${name.weight}` : name.name;
-        if (!nameSet.has(key)) {
-          nameSet.add(key);
-          nameCounts[key] = 0;
-        }
-        nameCounts[key] += name.count;
-      });
-      const result = [];
-      Object.keys(nameCounts).forEach(key => {
-        if (nameCounts[key] > 1) {
-          result.push(`${key}*${nameCounts[key]}`);
-        } else {
-          result.push(key);
-        }
-      });
-
-      const oldValue = document.querySelector('#in_names').value;
-      const newValue = result.join(',');
-
-      if (oldValue !== newValue) {
-        document.querySelector('#in_names').value = newValue;
-        getReady();
-      }
-    });
-
-    document.querySelector('#btnShuffle').addEventListener('click', () => {
-      getReady();
-    });
-
-    document.querySelector('#btnStart').addEventListener('click', () => {
-      if (!ready) return;
-      gtag && gtag('event', 'start', {
-        'event_category': 'roulette',
-        'event_label': 'start',
-        'value': window.roulette.getCount(),
-      });
-      const names = getNames();
-      const marbles = names.map(n => {
-        const p = parseName(n);
-        return { name: p.name, count: p.count };
-      });
-      if (typeof umami !== 'undefined') {
-        umami.track('start', { count: window.roulette.getCount() });
-        marbles.forEach(m => {
-          umami.track('marble', { name: m.name, count: m.count });
-        });
-      }
-      window.roulette.start();
-      document.querySelector('#settings').classList.add('hide');
-      document.querySelector('#donate').classList.add('hide');
-    });
-
-    document.querySelector('#chkAutoRecording').addEventListener('change', (e) => {
-      window.options.autoRecording = e.target.matches(':checked');
-      window.roulette.setAutoRecording(window.options.autoRecording);
-    });
-
-    document.querySelector('#chkSkill').addEventListener('change', (e) => {
-      window.options.useSkills = e.target.matches(':checked');
-      window.roulette.setWinningRank(window.options.winningRank);
-    });
-
-    document.querySelector('#chkDarkMode').addEventListener('change', (e) => {
-      window.options.darkMode = e.target.matches(':checked');
-      window.roulette.setTheme(window.options.darkMode ? 'dark' : 'light');
-      document.documentElement.classList.toggle('light', !window.options.darkMode);
-    });
-
-    document.querySelector('#in_winningRank').addEventListener('change', (e) => {
-      const v = parseInt(e.target.value, 10);
-      winnerType = 'custom';
-      setWinnerRank(isNaN(v) ? 0 : v);
-    });
-
-    document.querySelector('.btn-last-winner').addEventListener('click', () => {
-      const total = window.roulette.getCount();
-      winnerType = 'last';
-      setWinnerRank(total);
-    });
-    document.querySelector('.btn-first-winner').addEventListener('click', () => {
-      winnerType = 'first';
-      setWinnerRank(1);
-    });
-
-    window.roulette.addEventListener('goal', () => {
-      ready = false;
-      setTimeout(() => {
-        document.querySelector('#settings').classList.remove('hide');
-        document.querySelector('#donate').classList.remove('hide');
-      }, 3000);
-    });
-
-    window.roulette.addEventListener('message', (e) => {
-      simpleToast(e.detail);
-    });
-
-    const toggleBtn = document.querySelector('#btnToggleSettings');
-    const collapsible = document.querySelector('.collapsible-rows');
-    toggleBtn.addEventListener('click', () => {
-      collapsible.classList.toggle('collapsed');
-      toggleBtn.querySelector('.toggle-arrow').textContent =
-        collapsible.classList.contains('collapsed') ? '▲' : '▼';
-    });
-
-    document.querySelector('#btnShuffle').click();
-
-    const maps = window.roulette.getMaps();
-    const mapSelector = document.querySelector('#sltMap');
-    maps.forEach((map) => {
-      const option = document.createElement('option');
-      option.value = map.index;
-      option.innerHTML = map.title;
-      option.setAttribute('data-trans', '');
-      window.translateElement(option);
-      mapSelector.append(option);
-    });
-    mapSelector.addEventListener('change', (e) => {
-      const index = e.target.value;
-      window.roulette.setMap(index);
-    });
-
-    // const checkDonateButtonLoaded = () => {
-    //   const btn = document.querySelector('span.bmc-btn-text');
-    //   if (!btn) {
-    //     setTimeout(checkDonateButtonLoaded, 100);
-    //   } else {
-    //     console.log('donation button has been loaded');
-    //     btn.setAttribute('data-trans', '');
-    //     window.translateElement(btn);
-    //   }
-    // };
-    // setTimeout(checkDonateButtonLoaded, 100);
-
-    const currentNotice = 5;
-    const noticeKey = 'lastViewedNotification';
-
-    const closeNotice = () => {
-      document.querySelector('#notice').style.display = 'none';
-      localStorage.setItem(noticeKey, currentNotice.toString());
-    };
-
-    const openNotice = () => {
-      console.log('openNotice');
-      document.querySelector('#notice').style.display = 'flex';
-    };
-
-    document.querySelector('#closeNotice').addEventListener('click', () => {
-      closeNotice();
-    });
-
-    document.querySelector('#btnNotice').addEventListener('click', () => {
-      openNotice();
-    });
-
-    function simpleToast(msg) {
-      const toast = document.createElement('div');
-      toast.classList.add('toast');
-      toast.innerHTML = msg;
-
-      if (window.translateElement) {
-        console.log('try to translate');
-        window.translateElement(toast);
-      }
-
-      document.body.appendChild(toast);
-      setTimeout(() => {
-        document.body.removeChild(toast);
-      }, 1200);
-    }
-
-    const checkNotice = () => {
-      const lastViewed = localStorage.getItem(noticeKey);
-      console.log('lastViewed', lastViewed);
-      if (lastViewed === null || Number(lastViewed) < currentNotice) {
-        openNotice();
-      }
-    };
-
-    checkNotice();
-
-    // ===== 치트 시스템 (코나미 코드) =====
-    const konamiSequence = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
-    let konamiIndex = 0;
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key.toLowerCase() === konamiSequence[konamiIndex].toLowerCase()) {
-        konamiIndex++;
-        if (konamiIndex === konamiSequence.length) {
-          konamiIndex = 0;
-          toggleCheatPanel();
-        }
-      } else {
-        konamiIndex = 0;
-      }
-    });
-
-    let cheatPanel = null;
-    let cheatTargetLabel = null;
-
-    function toggleCheatPanel() {
-      if (cheatPanel) {
-        cheatPanel.remove();
-        cheatPanel = null;
-        window.roulette.clearCheat();
-        return;
-      }
-
-      cheatPanel = document.createElement('div');
-      cheatPanel.id = 'cheatPanel';
-      cheatPanel.innerHTML = `
-        <div class="cheat-header">🎱</div>
-        <div class="cheat-modes">
-          <button class="cheat-btn cheat-win active" id="btnCheatWin">🏆 1등</button>
-          <button class="cheat-btn cheat-lose" id="btnCheatLose">💀 꼴등</button>
-        </div>
-        <div class="cheat-target" id="cheatTargetLabel">구슬을 클릭하세요</div>
-        <button class="cheat-btn cheat-close" id="btnCheatClose">✕</button>
-      `;
-      document.body.appendChild(cheatPanel);
-
-      cheatTargetLabel = document.querySelector('#cheatTargetLabel');
-
-      // 기본 모드: Win
-      window.roulette.setCheatMode('win');
-
-      document.querySelector('#btnCheatWin').addEventListener('click', () => {
-        window.roulette.setCheatMode('win');
-        document.querySelector('#btnCheatWin').classList.add('active');
-        document.querySelector('#btnCheatLose').classList.remove('active');
-      });
-
-      document.querySelector('#btnCheatLose').addEventListener('click', () => {
-        window.roulette.setCheatMode('lose');
-        document.querySelector('#btnCheatLose').classList.add('active');
-        document.querySelector('#btnCheatWin').classList.remove('active');
-      });
-
-      document.querySelector('#btnCheatClose').addEventListener('click', () => {
-        cheatPanel.remove();
-        cheatPanel = null;
-        window.roulette.clearCheat();
-      });
-    }
-
-    // 캔버스 클릭 시 구슬 선택
-    const canvas = document.querySelector('canvas');
-    if (canvas) {
-      canvas.addEventListener('pointerdown', (e) => {
-        if (!window.roulette.isCheatActive()) return;
-        const selected = window.roulette.selectCheatTarget(e.offsetX, e.offsetY);
-        if (selected && cheatTargetLabel) {
-          cheatTargetLabel.textContent = '🎯 ' + selected.name;
-          cheatTargetLabel.classList.add('selected');
-        }
-      });
-    }
-
-    // 게임 시작 시 치트 패널 투명하게
-    window.roulette.addEventListener('goal', () => {
-      if (cheatPanel) {
-        cheatPanel.remove();
-        cheatPanel = null;
-      }
-    });
-  }
-</script>
-<div id="settings" class="settings">
-  <div class="right">
-    <button id="btnToggleSettings" class="btn-toggle-settings">
+<!DOCTYPE html><html lang=en><script type=importmap>{"imports":{"2rDQN":"/roulette/Box2D.simd.dd31b167.wasm","8BShk":"/roulette/Box2D.simd.13a3a125.js","9DwmV":"/roulette/kkwak.673a610d.png","9YLvj":"/roulette/waldokun.7e88dd59.png","cdgIR":"/roulette/chamru.d6926a56.png","fkRhi":"/roulette/junyoop.d27f0cbf.png","h7cmx":"/roulette/Box2D.b9b16b27.wasm","ilUZb":"/roulette/Box2D.4b04ba8e.js","juMvj":"/roulette/ff.7fdc9e82.svg","lfSvD":"/roulette/kubin.f3647b70.png"}}</script><meta charset=UTF-8><meta http-equiv=X-UA-Compatible content="ie=edge"><script async src="https://www.googletagmanager.com/gtag/js?id=G-5899C1DJM0"></script><script defer src=https://umami.lazygyu.net/script.js data-website-id=205aee0d-30b6-4c69-a053-0c72c8377be0></script><title>Marble Roulette</title><meta name=viewport content="width=device-width, initial-scale=1.0"><link rel=apple-touch-icon sizes=57x57 href=/roulette/apple-icon-57x57.5ecd1650.png><link rel=apple-touch-icon sizes=60x60 href=/roulette/apple-icon-60x60.b46a75af.png><link rel=apple-touch-icon sizes=72x72 href=/roulette/apple-icon-72x72.4726ed35.png><link rel=apple-touch-icon sizes=76x76 href=/roulette/apple-icon-76x76.72dbc1e1.png><link rel=apple-touch-icon sizes=114x114 href=/roulette/apple-icon-114x114.6cefcd75.png><link rel=apple-touch-icon sizes=120x120 href=/roulette/apple-icon-120x120.462d8e84.png><link rel=apple-touch-icon sizes=144x144 href=/roulette/apple-icon-144x144.36ef70f8.png><link rel=apple-touch-icon sizes=152x152 href=/roulette/apple-icon-152x152.1f1d2b56.png><link rel=apple-touch-icon sizes=180x180 href=/roulette/apple-icon-180x180.33666671.png><link rel=icon type=image/png sizes=192x192 href=/roulette/android-icon-192x192.6c0734fc.png><link rel=icon type=image/png sizes=32x32 href=/roulette/favicon-32x32.b3414860.png><link rel=icon type=image/png sizes=96x96 href=/roulette/favicon-96x96.b086bd80.png><link rel=icon type=image/png sizes=16x16 href=/roulette/favicon-16x16.b88a3ef4.png><link rel=manifest href=/roulette/assets/manifest.webmanifest><meta name=msapplication-TileColor content=#ffffff><meta name=msapplication-TileImage content=/roulette/ms-icon-144x144.e402ee4a.png><meta name=theme-color content=#ffffff><meta name=description content="A lucky draw by dropping marbles, made by lazygyu"><meta property=og:url content=https://lazygyu.github.io/roulette/><meta property=og:title content="Marble Roulette"><meta property=og:description content="A lucky draw by dropping marbles, made by lazygyu"><meta property=og:site_name content=lazygyu.github.io><meta property=og:type content=website><link rel=stylesheet href=/roulette/roulette.193c4cf4.css><body>
+<script type=module src=/roulette/roulette.31f8fbbf.js></script>
+<script>function gtag(){dataLayer.push(arguments)}function getNames(){return document.querySelector("#in_names").value.trim().split(/[,\r\n]/g).map(e=>e.trim()).filter(e=>!!e)}function parseName(e){let t=/(\/\d+)/,n=/(\*\d+)/,o=t.test(e),i=n.test(e),a=/^\s*([^\/*]+)?/.exec(e)[1];return{name:a,weight:o?parseInt(t.exec(e)[1].replace("/","")):1,count:i?parseInt(n.exec(e)[1].replace("*","")):1}}function getReady(){let e=getNames();switch(window.roulette.setMarbles(e),ready=e.length>0,localStorage.setItem("mbr_names",e.join(",")),winnerType){case"first":setWinnerRank(1);break;case"last":setWinnerRank(window.roulette.getCount())}}function setWinnerRank(e){document.querySelector("#in_winningRank").value=e,window.options.winningRank=e-1,window.roulette.setWinningRank(window.options.winningRank),"first"===winnerType?(document.querySelector(".btn-first-winner").classList.toggle("active",!0),document.querySelector(".btn-last-winner").classList.toggle("active",!1),document.querySelector("#in_winningRank").classList.toggle("active",!1)):"last"===winnerType?(document.querySelector(".btn-first-winner").classList.toggle("active",!1),document.querySelector(".btn-last-winner").classList.toggle("active",!0),document.querySelector("#in_winningRank").classList.toggle("active",!1)):"custom"===winnerType&&(document.querySelector(".btn-first-winner").classList.toggle("active",!1),document.querySelector(".btn-last-winner").classList.toggle("active",!1),document.querySelector("#in_winningRank").classList.toggle("active",!0))}window.dataLayer=window.dataLayer||[],gtag("js",new Date),gtag("config","G-5899C1DJM0");let ready=!1,winnerType="first";function initialize(){let e;if(!window.roulette||!window.roulette.isReady){console.log("does not loaded yet"),setTimeout(initialize,100);return}console.log("initializing start");let t=new URLSearchParams(window.location.search).get("names");if(t)document.querySelector("#in_names").value=t.replace(/,/g,"\n");else{let e=localStorage.getItem("mbr_names");e&&(document.querySelector("#in_names").value=e)}document.querySelector("#in_names").addEventListener("input",()=>{getReady()}),document.querySelector("#in_names").addEventListener("blur",()=>{let e=getNames(),t=new Set,n={};e.forEach(e=>{let o=parseName(e),i=o.weight>1?`${o.name}/${o.weight}`:o.name;t.has(i)||(t.add(i),n[i]=0),n[i]+=o.count});let o=[];Object.keys(n).forEach(e=>{n[e]>1?o.push(`${e}*${n[e]}`):o.push(e)});let i=document.querySelector("#in_names").value,a=o.join(",");i!==a&&(document.querySelector("#in_names").value=a,getReady())}),document.querySelector("#btnShuffle").addEventListener("click",()=>{getReady()}),document.querySelector("#btnStart").addEventListener("click",()=>{if(!ready)return;gtag&&gtag("event","start",{event_category:"roulette",event_label:"start",value:window.roulette.getCount()});let e=getNames().map(e=>{let t=parseName(e);return{name:t.name,count:t.count}});"u">typeof umami&&(umami.track("start",{count:window.roulette.getCount()}),e.forEach(e=>{umami.track("marble",{name:e.name,count:e.count})})),window.roulette.start(),document.querySelector("#settings").classList.add("hide"),document.querySelector("#donate").classList.add("hide")}),document.querySelector("#chkAutoRecording").addEventListener("change",e=>{window.options.autoRecording=e.target.matches(":checked"),window.roulette.setAutoRecording(window.options.autoRecording)}),document.querySelector("#chkSkill").addEventListener("change",e=>{window.options.useSkills=e.target.matches(":checked"),window.roulette.setWinningRank(window.options.winningRank)}),document.querySelector("#chkDarkMode").addEventListener("change",e=>{window.options.darkMode=e.target.matches(":checked"),window.roulette.setTheme(window.options.darkMode?"dark":"light"),document.documentElement.classList.toggle("light",!window.options.darkMode)}),document.querySelector("#in_winningRank").addEventListener("change",e=>{let t=parseInt(e.target.value,10);winnerType="custom",setWinnerRank(isNaN(t)?0:t)}),document.querySelector(".btn-last-winner").addEventListener("click",()=>{let e=window.roulette.getCount();winnerType="last",setWinnerRank(e)}),document.querySelector(".btn-first-winner").addEventListener("click",()=>{winnerType="first",setWinnerRank(1)}),window.roulette.addEventListener("goal",()=>{ready=!1,setTimeout(()=>{document.querySelector("#settings").classList.remove("hide"),document.querySelector("#donate").classList.remove("hide")},3e3)}),window.roulette.addEventListener("message",e=>{var t;let n;t=e.detail,(n=document.createElement("div")).classList.add("toast"),n.innerHTML=t,window.translateElement&&(console.log("try to translate"),window.translateElement(n)),document.body.appendChild(n),setTimeout(()=>{document.body.removeChild(n)},1200)});let n=document.querySelector("#btnToggleSettings"),o=document.querySelector(".collapsible-rows");n.addEventListener("click",()=>{o.classList.toggle("collapsed"),n.querySelector(".toggle-arrow").textContent=o.classList.contains("collapsed")?"▲":"▼"}),document.querySelector("#btnShuffle").click();let i=window.roulette.getMaps(),a=document.querySelector("#sltMap");i.forEach(e=>{let t=document.createElement("option");t.value=e.index,t.innerHTML=e.title,t.setAttribute("data-trans",""),window.translateElement(t),a.append(t)}),a.addEventListener("change",e=>{let t=e.target.value;window.roulette.setMap(t)});let r="lastViewedNotification",l=()=>{console.log("openNotice"),document.querySelector("#notice").style.display="flex"};document.querySelector("#closeNotice").addEventListener("click",()=>{document.querySelector("#notice").style.display="none",localStorage.setItem(r,"5")}),document.querySelector("#btnNotice").addEventListener("click",()=>{l()}),console.log("lastViewed",e=localStorage.getItem(r)),(null===e||5>Number(e))&&l()}document.addEventListener("DOMContentLoaded",()=>{initialize()});</script>
+<div id=settings class=settings>
+  <div class=right>
+    <button id=btnToggleSettings class=btn-toggle-settings>
       <span data-trans>Settings</span>
-      <i class="toggle-arrow">▲</i>
+      <i class=toggle-arrow>▲</i>
     </button>
-    <div class="collapsible-rows collapsed">
-      <div class="row">
-        <label for='sltMap'>
+    <div class="collapsed collapsible-rows">
+      <div class=row>
+        <label for=sltMap>
           <i class="icon map"></i>
           <span data-trans>Map</span>
         </label>
-        <select id="sltMap"></select>
+        <select id=sltMap></select>
       </div>
       <div class="row row-toggles">
-        <div class='toggle-item'>
-          <label for='chkAutoRecording'>
+        <div class=toggle-item>
+          <label for=chkAutoRecording>
             <i class="icon record"></i>
             <span data-trans>Recording</span>
           </label>
-          <input type="checkbox" id="chkAutoRecording" />
+          <input type=checkbox id=chkAutoRecording>
         </div>
-        <div class='toggle-item'>
-          <label for='chkSkill'>
-            <i class="icon bomb"></i>
+        <div class=toggle-item>
+          <label for=chkSkill>
+            <i class="bomb icon"></i>
             <span data-trans>Using skills</span>
           </label>
-          <input type="checkbox" id="chkSkill" checked />
+          <input type=checkbox id=chkSkill checked>
         </div>
       </div>
-      <div class="row">
+      <div class=row>
         <label>
           <i class="icon trophy"></i>
           <span data-trans>The winner is</span>
         </label>
-        <div class="btn-group">
-          <button class="btn-winner btn-first-winner active" data-trans>First</button>
-          <button class="btn-winner btn-last-winner" data-trans>Last</button>
-          <input type="number" id="in_winningRank" value="1" min="1" aria-label="Winning rank" title="Winning rank" />
+        <div class=btn-group>
+          <button class="active btn-first-winner btn-winner" data-trans>First</button>
+          <button class="btn-last-winner btn-winner" data-trans>Last</button>
+          <input type=number id=in_winningRank value=1 min=1>
         </div>
       </div>
       <div class="row row-theme">
-        <div class='theme'>
-          <i class='icon sun'></i>
-          <input type='checkbox' id='chkDarkMode' checked aria-label='Dark mode' title='Dark mode' />
-          <i class='icon moon'></i>
+        <div class=theme>
+          <i class="icon sun"></i>
+          <input type=checkbox id=chkDarkMode checked>
+          <i class="icon moon"></i>
         </div>
       </div>
     </div>
   </div>
-  <div class="left">
+  <div class=left>
     <h3 data-trans>Enter names below</h3>
-    <textarea id="in_names" placeholder="Input names separated by commas or line feed here" data-trans="placeholder">수박*2,키위*2,귤*2</textarea>
-    <div class="actions">
-      <button id="btnNotice" aria-label="Notice" title="Notice">
+    <textarea id=in_names placeholder="Input names separated by commas or line feed here" data-trans=placeholder>수박*2,키위*2,귤*2</textarea>
+    <div class=actions>
+      <button id=btnNotice>
         <i class="icon megaphone"></i>
       </button>
-      <a href='https://marblerouletteshop.com' target='_blank' rel='noopener' id="btnShop" class='btn new' title='MarbleRoulette Shop'>
-        <img src='assets/images/marblerouletteshop.png' alt='MarbleRoulette Shop' />
+      <a href=https://marblerouletteshop.com target=_blank id=btnShop class="btn new" title="MarbleRoulette Shop">
+        <img src=/roulette/marblerouletteshop.a506d1c2.png>
       </a>
-      <div class="sep"></div>
-      <button id="btnShuffle">
+      <div class=sep></div>
+      <button id=btnShuffle>
         <i class="icon shuffle"></i>
         <span data-trans>Shuffle</span>
       </button>
-      <button id="btnStart">
+      <button id=btnStart>
         <i class="icon play"></i>
         <span data-trans>Start</span>
       </button>
     </div>
   </div>
 </div>
-<div id="notice">
+<div id=notice>
   <h1>Notice</h1>
-  <div class="notice-body">
+  <div class=notice-body>
     <h2>커스텀 룰렛 기능 오픈!</h2>
     <p>나만의 특별한 룰렛을 만들 수 있는 커스텀 룰렛 기능이 오픈했어요!</p>
     <p>
-      <a href='https://marblerouletteshop.com/intro/roulette' target='_blank' rel='noopener' class='shop-button holographic'><img
-        src='assets/images/marblerouletteshop.png' width='125' height='125' alt='MarbleRoulette Shop' /> 룰렛 꾸미러 가기</a>
+      <a href=https://marblerouletteshop.com/intro/roulette target=_blank class="holographic shop-button"><img src=/roulette/marblerouletteshop.a506d1c2.png width=125 height=125> 룰렛 꾸미러 가기</a>
     </p>
   </div>
-  <div class="notice-action">
-    <button id="closeNotice" data-trans>Close</button>
+  <div class=notice-action>
+    <button id=closeNotice data-trans>Close</button>
   </div>
 </div>
-<div class="copyright">&copy; 2022-2026.<a href="https://lazygyu.net" target="_blank" rel="noopener">lazygyu</a> <span data-trans>This program is freeware and may be used freely anywhere, including in broadcasts and videos.</span>
+<!-- CHEAT PANEL -->
+<style>
+  #cheatToggleBtn {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 10000;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,0,100,0.6);
+    background: linear-gradient(135deg, rgba(30,0,50,0.85), rgba(80,0,40,0.85));
+    color: #ff4488;
+    font-size: 20px;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 0 15px rgba(255,0,100,0.3), inset 0 0 10px rgba(255,0,100,0.1);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #cheatToggleBtn:hover {
+    box-shadow: 0 0 25px rgba(255,0,100,0.5);
+    transform: scale(1.1);
+  }
+  #cheatPanel {
+    display: none;
+    position: fixed;
+    top: 60px;
+    right: 10px;
+    z-index: 10000;
+    width: 280px;
+    background: linear-gradient(145deg, rgba(15,5,25,0.95), rgba(40,10,30,0.95));
+    border: 1px solid rgba(255,0,100,0.3);
+    border-radius: 14px;
+    padding: 16px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(255,0,100,0.15);
+    font-family: 'Segoe UI', sans-serif;
+    color: #eee;
+  }
+  #cheatPanel.show { display: block; }
+  #cheatPanel h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: #ff6699;
+    text-align: center;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px rgba(255,0,100,0.4);
+  }
+  #cheatPanel label {
+    font-size: 11px;
+    color: #aaa;
+    margin-bottom: 4px;
+    display: block;
+  }
+  #cheatMarbleSelect {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,0,100,0.3);
+    background: rgba(255,255,255,0.07);
+    color: #fff;
+    font-size: 13px;
+    margin-bottom: 12px;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+  #cheatMarbleSelect:focus {
+    border-color: rgba(255,0,100,0.7);
+  }
+  #cheatMarbleSelect option {
+    background: #1a0a1a;
+    color: #fff;
+  }
+  .cheat-btn-group {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .cheat-btn {
+    flex: 1;
+    padding: 10px 6px;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    letter-spacing: 0.5px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cheat-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    transition: left 0.5s;
+  }
+  .cheat-btn:hover::before { left: 100%; }
+  .cheat-btn-boost {
+    background: linear-gradient(135deg, #00c853, #00e676);
+    color: #003d00;
+    box-shadow: 0 0 12px rgba(0,200,80,0.3);
+  }
+  .cheat-btn-boost:hover {
+    box-shadow: 0 0 20px rgba(0,200,80,0.5);
+    transform: translateY(-1px);
+  }
+  .cheat-btn-boost.active {
+    background: linear-gradient(135deg, #00e676, #76ff03);
+    box-shadow: 0 0 25px rgba(0,230,118,0.6);
+    animation: cheatPulse 1.5s infinite;
+  }
+  .cheat-btn-sabotage {
+    background: linear-gradient(135deg, #ff1744, #ff5252);
+    color: #4a0000;
+    box-shadow: 0 0 12px rgba(255,23,68,0.3);
+  }
+  .cheat-btn-sabotage:hover {
+    box-shadow: 0 0 20px rgba(255,23,68,0.5);
+    transform: translateY(-1px);
+  }
+  .cheat-btn-sabotage.active {
+    background: linear-gradient(135deg, #ff5252, #ff8a80);
+    box-shadow: 0 0 25px rgba(255,82,82,0.6);
+    animation: cheatPulse 1.5s infinite;
+  }
+  .cheat-btn-stop {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.06);
+    color: #aaa;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .cheat-btn-stop:hover {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+  }
+  #cheatStatus {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    font-size: 11px;
+    color: #888;
+    min-height: 20px;
+    text-align: center;
+    transition: all 0.3s;
+  }
+  #cheatStatus.active {
+    border-color: rgba(255,0,100,0.3);
+    color: #ff9999;
+  }
+  .cheat-power-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .cheat-power-row label {
+    margin: 0;
+    white-space: nowrap;
+    min-width: 45px;
+  }
+  #cheatPower {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.1);
+    outline: none;
+  }
+  #cheatPower::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #ff4488;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(255,0,100,0.4);
+  }
+  #cheatPowerVal {
+    font-size: 11px;
+    color: #ff6699;
+    min-width: 25px;
+    text-align: right;
+  }
+  @keyframes cheatPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.75; }
+  }
+</style>
+
+<button id="cheatToggleBtn" title="치트 패널">🎯</button>
+<div id="cheatPanel">
+  <h3>🎮 치트 패널</h3>
+  <label>대상 구슬 선택</label>
+  <select id="cheatMarbleSelect">
+    <option value="">-- 게임 시작 후 선택 --</option>
+  </select>
+  <div class="cheat-power-row">
+    <label>파워</label>
+    <input type="range" id="cheatPower" min="1" max="20" value="8">
+    <span id="cheatPowerVal">8</span>
+  </div>
+  <div class="cheat-btn-group">
+    <button class="cheat-btn cheat-btn-boost" id="cheatBoost">🚀 1등</button>
+    <button class="cheat-btn cheat-btn-sabotage" id="cheatSabotage">🐢 꼴찌</button>
+  </div>
+  <button class="cheat-btn-stop" id="cheatStop">⏹ 치트 중지</button>
+  <div id="cheatStatus">대기 중...</div>
 </div>
-</body>
-</html>
+
+<script>
+(function() {
+  const toggleBtn = document.getElementById('cheatToggleBtn');
+  const panel = document.getElementById('cheatPanel');
+  const select = document.getElementById('cheatMarbleSelect');
+  const boostBtn = document.getElementById('cheatBoost');
+  const sabotageBtn = document.getElementById('cheatSabotage');
+  const stopBtn = document.getElementById('cheatStop');
+  const statusDiv = document.getElementById('cheatStatus');
+  const powerSlider = document.getElementById('cheatPower');
+  const powerVal = document.getElementById('cheatPowerVal');
+
+  let cheatInterval = null;
+  let cheatMode = null; // 'boost' or 'sabotage'
+  let targetMarbleId = null;
+
+  toggleBtn.addEventListener('click', () => {
+    panel.classList.toggle('show');
+    if (panel.classList.contains('show')) refreshMarbleList();
+  });
+
+  powerSlider.addEventListener('input', () => {
+    powerVal.textContent = powerSlider.value;
+  });
+
+  // 구슬 목록 새로고침
+  function refreshMarbleList() {
+    select.innerHTML = '<option value="">-- 구슬 선택 --</option>';
+    if (!window.roulette || !window.roulette._marbles) return;
+    const marbles = window.roulette._marbles;
+    if (marbles.length === 0) {
+      select.innerHTML = '<option value="">-- 게임 시작 후 선택 --</option>';
+      return;
+    }
+    // 현재 순위 순서로 표시 (y값 큰 순 = 선두)
+    const sorted = [...marbles].sort((a, b) => b.y - a.y);
+    sorted.forEach((m, idx) => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = `#${idx + 1} ${m.name}`;
+      opt.style.color = m.color;
+      select.appendChild(opt);
+    });
+  }
+
+  // 주기적으로 구슬 목록 업데이트
+  setInterval(() => {
+    if (panel.classList.contains('show')) {
+      const currentVal = select.value;
+      refreshMarbleList();
+      if (currentVal) select.value = currentVal;
+      updateStatusText();
+    }
+  }, 1000);
+
+  function stopCheat() {
+    if (cheatInterval) {
+      clearInterval(cheatInterval);
+      cheatInterval = null;
+    }
+    cheatMode = null;
+    targetMarbleId = null;
+    boostBtn.classList.remove('active');
+    sabotageBtn.classList.remove('active');
+    statusDiv.textContent = '대기 중...';
+    statusDiv.classList.remove('active');
+  }
+
+  function updateStatusText() {
+    if (!cheatMode || targetMarbleId === null) return;
+    const marbles = window.roulette._marbles;
+    if (!marbles || marbles.length === 0) return;
+    const sorted = [...marbles].sort((a, b) => b.y - a.y);
+    const target = marbles.find(m => m.id == targetMarbleId);
+    if (!target) {
+      stopCheat();
+      statusDiv.textContent = '대상 구슬이 사라졌습니다';
+      return;
+    }
+    const rank = sorted.findIndex(m => m.id == targetMarbleId) + 1;
+    const total = sorted.length;
+    const modeText = cheatMode === 'boost' ? '🚀 부스트' : '🐢 방해';
+    statusDiv.textContent = `${modeText} 중: ${target.name} (${rank}/${total}위)`;
+    statusDiv.classList.add('active');
+  }
+
+  function startCheat(mode) {
+    stopCheat();
+    const selectedId = select.value;
+    if (!selectedId) {
+      statusDiv.textContent = '⚠️ 먼저 구슬을 선택하세요!';
+      return;
+    }
+    targetMarbleId = parseInt(selectedId);
+    cheatMode = mode;
+
+    if (mode === 'boost') {
+      boostBtn.classList.add('active');
+    } else {
+      sabotageBtn.classList.add('active');
+    }
+
+    cheatInterval = setInterval(() => {
+      if (!window.roulette || !window.roulette.physics) return;
+      const physics = window.roulette.physics;
+      const body = physics.marbleMap[targetMarbleId];
+      if (!body) {
+        stopCheat();
+        statusDiv.textContent = '대상 구슬이 사라졌습니다';
+        return;
+      }
+
+      const power = parseInt(powerSlider.value);
+      const Box2D = physics.Box2D;
+
+      if (mode === 'boost') {
+        // 아래로 강한 힘 (y 양의 방향 = 아래) + 약간의 랜덤 수평
+        const fx = (Math.random() - 0.5) * power * 0.3;
+        const fy = power * 1.5;
+        body.ApplyLinearImpulseToCenter(new Box2D.b2Vec2(fx, fy), true);
+      } else {
+        // 위로 강한 힘 (y 음의 방향 = 위) + 수평 방해
+        const fx = (Math.random() - 0.5) * power * 2;
+        const fy = -power * 1.2;
+        body.ApplyLinearImpulseToCenter(new Box2D.b2Vec2(fx, fy), true);
+      }
+    }, 50);
+
+    updateStatusText();
+  }
+
+  boostBtn.addEventListener('click', () => startCheat('boost'));
+  sabotageBtn.addEventListener('click', () => startCheat('sabotage'));
+  stopBtn.addEventListener('click', stopCheat);
+
+  // 게임이 끝나면 치트 자동 중지
+  if (window.roulette) {
+    window.roulette.addEventListener('goal', () => {
+      setTimeout(stopCheat, 1000);
+    });
+  } else {
+    // roulette이 아직 로드 안됐을 수 있으므로 대기
+    const waitForRoulette = setInterval(() => {
+      if (window.roulette) {
+        clearInterval(waitForRoulette);
+        window.roulette.addEventListener('goal', () => {
+          setTimeout(stopCheat, 1000);
+        });
+      }
+    }, 500);
+  }
+})();
+</script>
+
+<div class=copyright>© 2022-2026.<a href=https://lazygyu.net target=_blank>lazygyu</a> <span data-trans>This program is freeware and may be used freely anywhere, including in broadcasts and videos.</span>
+</div>
+
+
