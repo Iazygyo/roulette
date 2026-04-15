@@ -397,11 +397,10 @@
           try {
              if (typeof body.GetFixtureList === 'function') {
                 let f = body.GetFixtureList();
-                while (f) {
+                // 무한루프 방지를 위해 첫 번째 Fixture(구슬 본체 형태)만 바로 적용합니다.
+                if (f) {
                    if (typeof f.SetRestitution === 'function') f.SetRestitution(0.5); 
                    if (typeof f.SetFriction === 'function') f.SetFriction(0.2); 
-                   if (typeof f.GetNext === 'function') f = f.GetNext();
-                   else break;
                 }
              }
           } catch(e) {}
@@ -460,15 +459,15 @@
         return;
       }
 
-      // 게임 시작 전이거나 시작 후 3초 이내면 치트 발동을 딜레이
-      if (gameStartTime === 0 || Date.now() - gameStartTime < 3000) {
-        if (!statusDiv.textContent.includes('3초 전')) {
-          statusDiv.textContent = `⏳ 대기 중 (${cheatMode === 'boost' ? '부스트' : '방해'} 작동 3초 전)`;
+      // 게임 시작 전이거나 시작 후 2초 이내면 치트 발동을 딜레이
+      if (gameStartTime === 0 || Date.now() - gameStartTime < 2000) {
+        if (!statusDiv.textContent.includes('2초 전')) {
+          statusDiv.textContent = `⏳ 대기 중 (${cheatMode === 'boost' ? '부스트' : '방해'} 작동 2초 전)`;
         }
         return;
       } else {
         // 예약 상태 표시 지우고 본래 텍스트로 업데이트
-        if (statusDiv.textContent.includes('3초 전')) {
+        if (statusDiv.textContent.includes('2초 전')) {
           updateStatusText();
         }
       }
@@ -502,11 +501,10 @@
       try {
         if (typeof body.GetFixtureList === 'function') {
           let f = body.GetFixtureList();
-          while (f) {
+          // GetNext() 무한루프에 의한 사이트 프리징 방지 (메인 구슬 Fixture 1개에만 적용)
+          if (f) {
             if (typeof f.SetRestitution === 'function') f.SetRestitution(targetRestitution);
             if (typeof f.SetFriction === 'function') f.SetFriction(targetFriction);
-            if (typeof f.GetNext === 'function') f = f.GetNext();
-            else break;
           }
         }
       } catch (e) {
