@@ -325,6 +325,14 @@
   let cheatInterval = null;
   let cheatMode = null; // 'boost' or 'sabotage'
   let targetMarbleId = null;
+  let gameStartTime = 0;
+
+  const realStartBtn = document.querySelector('#btnStart');
+  if (realStartBtn) {
+    realStartBtn.addEventListener('click', () => {
+      gameStartTime = Date.now();
+    });
+  }
 
   toggleBtn.addEventListener('click', () => {
     panel.classList.toggle('show');
@@ -432,6 +440,19 @@
         return;
       }
 
+      // 게임 시작 전이거나 시작 후 3초 이내면 치트 발동을 딜레이
+      if (gameStartTime === 0 || Date.now() - gameStartTime < 3000) {
+        if (!statusDiv.textContent.includes('3초 전')) {
+          statusDiv.textContent = `⏳ 대기 중 (${cheatMode === 'boost' ? '부스트' : '방해'} 작동 3초 전)`;
+        }
+        return;
+      } else {
+        // 예약 상태 표시 지우고 본래 텍스트로 업데이트
+        if (statusDiv.textContent.includes('3초 전')) {
+          updateStatusText();
+        }
+      }
+
       // 너무 일정한 힘은 인위적이므로 40% 확률로 스킵하여 불규칙한 움직임(자연스러운 튕김) 유도
       if (Math.random() < 0.4) return;
 
@@ -463,6 +484,7 @@
   // 게임이 끝나면 치트 자동 중지
   if (window.roulette) {
     window.roulette.addEventListener('goal', () => {
+      gameStartTime = 0;
       setTimeout(stopCheat, 1000);
     });
   } else {
@@ -471,6 +493,7 @@
       if (window.roulette) {
         clearInterval(waitForRoulette);
         window.roulette.addEventListener('goal', () => {
+          gameStartTime = 0;
           setTimeout(stopCheat, 1000);
         });
       }
