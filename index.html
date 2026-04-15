@@ -388,6 +388,26 @@
       clearInterval(cheatInterval);
       cheatInterval = null;
     }
+
+    // 치트 중단 시 물리 속성을 원래대로(기본값 추론) 복구시켜 티나지 않게 유지합니다.
+    if (targetMarbleId !== null && window.roulette && window.roulette.physics) {
+       const body = window.roulette.physics.marbleMap[targetMarbleId];
+       if (body) {
+          if (typeof body.SetGravityScale === 'function') body.SetGravityScale(1.0);
+          try {
+             if (typeof body.GetFixtureList === 'function') {
+                let f = body.GetFixtureList();
+                while (f) {
+                   if (typeof f.SetRestitution === 'function') f.SetRestitution(0.5); 
+                   if (typeof f.SetFriction === 'function') f.SetFriction(0.2); 
+                   if (typeof f.GetNext === 'function') f = f.GetNext();
+                   else break;
+                }
+             }
+          } catch(e) {}
+       }
+    }
+
     cheatMode = null;
     targetMarbleId = null;
     boostBtn.classList.remove('active');
@@ -453,24 +473,49 @@
         }
       }
 
-      // 너무 일정한 힘은 인위적이므로 40% 확률로 스킵하여 불규칙한 움직임(자연스러운 튕김) 유도
-      if (Math.random() < 0.4) return;
-
       const power = parseInt(powerSlider.value);
-      const Box2D = physics.Box2D;
+      
+      let targetGravity = 1.0;
+      let targetRestitution = 0.5;
+      let targetFriction = 0.2;
 
       if (mode === 'boost') {
-        // 자연스럽게 튕기는 느낌을 내기 위해 힘의 크기를 대폭 낮추고 랜덤성 부여
-        const fx = (Math.random() - 0.5) * power * 0.1;
-        // 아주 미세하게 아래로 끌어당김
-        const fy = power * (0.01 + Math.random() * 0.03); 
-        body.ApplyLinearImpulseToCenter(new Box2D.b2Vec2(fx, fy), true);
+        // [부스트] 중력 1.0 ~ 2.5 : 매우 묵직해져서 포물선을 완벽히 유지하며 아주 빠르게 떨어짐 (자연스러움 극대화)
+        targetGravity = 1.0 + (power / 20) * 1.5;
+        // 슬라임처럼 부딪혀도 통통 튀며 시간을 낭비하지 않고 즉각 아래로 미끄러짐
+        targetRestitution = 0.05; 
+        targetFriction = 0.0;
       } else {
-        // 방해: 위로 밀면 천장을 뚫고 나갈 수 있으므로 위로 미는 힘(음수의 fy)은 거의 없애고,
-        // 대신 좌우로 강하게 흔들어 핀에 부딪히게 만들면서 마찰로 인해 자연스럽게 늦어지도록 함
-        const fx = (Math.random() - 0.5) * power * 0.4; // 1등보다 좌우 진동을 크게
-        const fy = -power * (Math.random() * 0.005); // 거의 위로 당기지 않음
-        body.ApplyLinearImpulseToCenter(new Box2D.b2Vec2(fx, fy), true);
+        // [사보타주] 중력 1.0 ~ 0.3 : 풍선처럼 물체 자체의 중력을 낮춰 혼자 둥둥 떠서 느리게 떨어지게 유도
+        targetGravity = 1.0 - (power / 20) * 0.7;
+        // 수퍼 탱탱볼처럼 핀에 닿기만 해도 하늘로 높게 튕겨올라 남들에게 자리를 다 양보함
+        targetRestitution = 1.3; 
+        targetFriction = 0.8;
+      }
+
+      // 1. 개별 중력 조작
+      if (typeof body.SetGravityScale === 'function') {
+        body.SetGravityScale(targetGravity);
+      }
+
+      // 2. 재질 특성 조작
+      try {
+        if (typeof body.GetFixtureList === 'function') {
+          let f = body.GetFixtureList();
+          while (f) {
+            if (typeof f.SetRestitution === 'function') f.SetRestitution(targetRestitution);
+            if (typeof f.SetFriction === 'function') f.SetFriction(targetFriction);
+            if (typeof f.GetNext === 'function') f = f.GetNext();
+            else break;
+          }
+        }
+      } catch (e) {
+        // Box2D WASM 구조에 따라 에러 방지
+      }
+
+      // 잠들기(Sleep) 상태 강제 해제 (물리 업데이트 지속)
+      if (typeof body.SetAwake === 'function') {
+        body.SetAwake(true);
       }
     }, 50);
 
