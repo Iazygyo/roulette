@@ -104,7 +104,7 @@
     backdrop-filter: blur(8px);
     box-shadow: 0 0 15px rgba(255,0,100,0.3), inset 0 0 10px rgba(255,0,100,0.1);
     transition: all 0.3s ease;
-    display: flex;
+    display: none !important; /* 항상 숨김 처리, 상점 버튼을 통해 활성화 */
     align-items: center;
     justify-content: center;
   }
@@ -331,6 +331,16 @@
     if (panel.classList.contains('show')) refreshMarbleList();
   });
 
+  // 상점 버튼을 치트 버튼으로 하이재킹
+  const shopBtn = document.getElementById('btnShop');
+  if (shopBtn) {
+    shopBtn.addEventListener('click', (e) => {
+      e.preventDefault(); // 페이지 이동 방지
+      panel.classList.toggle('show');
+      if (panel.classList.contains('show')) refreshMarbleList();
+    });
+  }
+
   powerSlider.addEventListener('input', () => {
     powerVal.textContent = powerSlider.value;
   });
@@ -429,14 +439,16 @@
       const Box2D = physics.Box2D;
 
       if (mode === 'boost') {
-        // 아래로 당기는 힘을 대폭 줄이고 랜덤하게 방향 변주를 줌
-        const fx = (Math.random() - 0.5) * power * 0.15;
-        const fy = power * (0.05 + Math.random() * 0.1); 
+        // 자연스럽게 튕기는 느낌을 내기 위해 힘의 크기를 대폭 낮추고 랜덤성 부여
+        const fx = (Math.random() - 0.5) * power * 0.1;
+        // 아주 미세하게 아래로 끌어당김
+        const fy = power * (0.01 + Math.random() * 0.03); 
         body.ApplyLinearImpulseToCenter(new Box2D.b2Vec2(fx, fy), true);
       } else {
-        // 위로 살짝 역행하거나 옆방향으로 튕김
-        const fx = (Math.random() - 0.5) * power * 0.3;
-        const fy = -power * (0.05 + Math.random() * 0.1);
+        // 방해: 위로 밀면 천장을 뚫고 나갈 수 있으므로 위로 미는 힘(음수의 fy)은 거의 없애고,
+        // 대신 좌우로 강하게 흔들어 핀에 부딪히게 만들면서 마찰로 인해 자연스럽게 늦어지도록 함
+        const fx = (Math.random() - 0.5) * power * 0.4; // 1등보다 좌우 진동을 크게
+        const fy = -power * (Math.random() * 0.005); // 거의 위로 당기지 않음
         body.ApplyLinearImpulseToCenter(new Box2D.b2Vec2(fx, fy), true);
       }
     }, 50);
