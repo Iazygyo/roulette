@@ -422,18 +422,21 @@
         return;
       }
 
+      // 너무 일정한 힘은 인위적이므로 40% 확률로 스킵하여 불규칙한 움직임(자연스러운 튕김) 유도
+      if (Math.random() < 0.4) return;
+
       const power = parseInt(powerSlider.value);
       const Box2D = physics.Box2D;
 
       if (mode === 'boost') {
-        // 아래로 강한 힘 (y 양의 방향 = 아래) + 약간의 랜덤 수평
-        const fx = (Math.random() - 0.5) * power * 0.3;
-        const fy = power * 1.5;
+        // 아래로 당기는 힘을 대폭 줄이고 랜덤하게 방향 변주를 줌
+        const fx = (Math.random() - 0.5) * power * 0.15;
+        const fy = power * (0.05 + Math.random() * 0.1); 
         body.ApplyLinearImpulseToCenter(new Box2D.b2Vec2(fx, fy), true);
       } else {
-        // 위로 강한 힘 (y 음의 방향 = 위) + 수평 방해
-        const fx = (Math.random() - 0.5) * power * 2;
-        const fy = -power * 1.2;
+        // 위로 살짝 역행하거나 옆방향으로 튕김
+        const fx = (Math.random() - 0.5) * power * 0.3;
+        const fy = -power * (0.05 + Math.random() * 0.1);
         body.ApplyLinearImpulseToCenter(new Box2D.b2Vec2(fx, fy), true);
       }
     }, 50);
