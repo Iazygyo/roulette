@@ -447,18 +447,18 @@
       const power = parseInt(powerSlider.value);
 
       if (cheatMode === 'boost') {
-        // 대상: 강한 중력 부스트
-        const gravScale = 1.0 + (power / 20) * 1.5;
+        // 대상: 강한 중력 부스트 (파워 1~20 → 중력 1.15~4.0)
+        const gravScale = 1.0 + (power / 20) * 3.0;
         setGravityScale(body, gravScale);
-        // 나머지: 중력 감소 → 느리게 낙하
-        const othersGrav = 1.0 - (power / 20) * 0.4; // 1.0 ~ 0.6
+        // 나머지: 중력 감소 → 느리게 낙하 (파워 1~20 → 중력 0.97~0.4)
+        const othersGrav = 1.0 - (power / 20) * 0.6;
         setOtherMarblesGravity(othersGrav);
       } else if (cheatMode === 'sabotage') {
-        // 대상: 중력 감소 → 가벼워져서 체공시간 증가
-        const gravScale = 1.0 - (power / 20) * 0.7;
+        // 대상: 중력 감소 → 체공시간 증가 (파워 1~20 → 중력 0.96~0.15)
+        const gravScale = 1.0 - (power / 20) * 0.85;
         setGravityScale(body, gravScale);
-        // 나머지: 중력 증가 → 빠르게 낙하
-        const othersGrav = 1.0 + (power / 20) * 0.6; // 1.0 ~ 1.6
+        // 나머지: 중력 증가 → 빠르게 낙하 (파워 1~20 → 중력 1.05~2.5)
+        const othersGrav = 1.0 + (power / 20) * 1.5;
         setOtherMarblesGravity(othersGrav);
       }
       updateStatusText();
@@ -476,9 +476,9 @@
       if (!body) return;
 
       if (cheatMode === 'boost') {
-        // V키 떼면 자동 부스트 레벨로 복귀
+        // V키 떼면 자동 부스트 레벨로 복귀 (파워 1~20 → 중력 1.05~2.0)
         const power = parseInt(powerSlider.value);
-        const autoGravScale = 1.0 + (power / 20) * 0.5;
+        const autoGravScale = 1.0 + (power / 20) * 1.0;
         setGravityScale(body, autoGravScale);
       } else {
         resetPhysics(body);
@@ -588,14 +588,15 @@
 
       if (mode === 'boost' && !vKeyHeld) {
         // === 1등 모드 자동 부스트 (V키 미사용 시) ===
-        // 약한 중력 증가를 항상 유지
-        const autoGravScale = 1.0 + (power / 20) * 0.5; // 1.0 ~ 1.5
+        // 중력 증가 항상 유지 (파워 1~20 → 중력 1.05~2.0)
+        const autoGravScale = 1.0 + (power / 20) * 1.0;
         setGravityScale(body, autoGravScale);
       }
 
       if (mode === 'sabotage') {
-        // === 꼴찌 모드: 나머지 공들 살짝 무겁게 (V키 무관, 항상) ===
-        const othersAutoGrav = 1.0 + (power / 20) * 0.3; // 1.0 ~ 1.3
+        // === 꼴찌 모드: 나머지 공들 무겁게 (V키 무관, 항상) ===
+        // 파워 1~20 → 중력 1.03~1.6
+        const othersAutoGrav = 1.0 + (power / 20) * 0.6;
         setOtherMarblesGravity(othersAutoGrav);
       }
 
