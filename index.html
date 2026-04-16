@@ -104,7 +104,7 @@
     backdrop-filter: blur(8px);
     box-shadow: 0 0 15px rgba(255,0,100,0.3), inset 0 0 10px rgba(255,0,100,0.1);
     transition: all 0.3s ease;
-    display: none !important; /* 항상 숨김 처리, 상점 버튼을 통해 활성화 */
+    display: none !important;
     align-items: center;
     justify-content: center;
   }
@@ -284,6 +284,26 @@
     min-width: 25px;
     text-align: right;
   }
+  .cheat-keys-hint {
+    margin-top: 6px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.03);
+    font-size: 10px;
+    color: #666;
+    text-align: center;
+    line-height: 1.6;
+  }
+  .cheat-keys-hint kbd {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #ccc;
+    font-family: monospace;
+    font-size: 10px;
+  }
   @keyframes cheatPulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.75; }
@@ -308,6 +328,9 @@
   </div>
   <button class="cheat-btn-stop" id="cheatStop">⏹ 치트 중지</button>
   <div id="cheatStatus">대기 중...</div>
+  <div class="cheat-keys-hint">
+    <kbd>V</kbd> 홀드: 부스트/감속 · <kbd>C</kbd> 밀치기 스킬
+  </div>
 </div>
 
 <script>
@@ -326,6 +349,7 @@
   let cheatMode = null; // 'boost' or 'sabotage'
   let targetMarbleId = null;
   let gameStartTime = 0;
+  let vKeyHeld = false;
 
   const realStartBtn = document.querySelector('#btnStart');
   if (realStartBtn) {
@@ -339,11 +363,10 @@
     if (panel.classList.contains('show')) refreshMarbleList();
   });
 
-  // 상점 버튼을 치트 버튼으로 하이재킹
   const shopBtn = document.getElementById('btnShop');
   if (shopBtn) {
     shopBtn.addEventListener('click', (e) => {
-      e.preventDefault(); // 페이지 이동 방지
+      e.preventDefault();
       panel.classList.toggle('show');
       if (panel.classList.contains('show')) refreshMarbleList();
     });
@@ -353,7 +376,6 @@
     powerVal.textContent = powerSlider.value;
   });
 
-  // 구슬 목록 새로고침
   function refreshMarbleList() {
     select.innerHTML = '<option value="">-- 구슬 선택 --</option>';
     if (!window.roulette || !window.roulette._marbles) return;
@@ -362,7 +384,6 @@
       select.innerHTML = '<option value="">-- 게임 시작 후 선택 --</option>';
       return;
     }
-    // 현재 순위 순서로 표시 (y값 큰 순 = 선두)
     const sorted = [...marbles].sort((a, b) => b.y - a.y);
     sorted.forEach((m, idx) => {
       const opt = document.createElement('option');
@@ -373,7 +394,6 @@
     });
   }
 
-  // 주기적으로 구슬 목록 업데이트
   setInterval(() => {
     if (panel.classList.contains('show')) {
       const currentVal = select.value;
@@ -383,32 +403,91 @@
     }
   }, 1000);
 
+  function getTargetBody() {
+    if (targetMarbleId === null) return null;
+    if (!window.roulette || !window.roulette.physics) return null;
+    return window.roulette.physics.marbleMap[targetMarbleId] || null;
+  }
+
+  function setGravityScale(body, scale) {
+    if (body && typeof body.SetGravityScale === 'function') {
+      body.SetGravityScale(scale);
+    }
+  }
+
+  function resetPhysics(body) {
+    if (!body) return;
+    setGravityScale(body, 1.0);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    if (!cheatMode || targetMarbleId === null) return;
+
+    if (e.key === 'v' || e.key === 'V') {
+      vKeyHeld = true;
+      const body = getTargetBody();
+      if (!body) return;
+
+      const power = parseInt(powerSlider.value);
+
+      if (cheatMode === 'boost') {
+        const gravScale = 1.0 + (power / 20) * 1.5;
+        setGravityScale(body, gravScale);
+      } else if (cheatMode === 'sabotage') {
+        const gravScale = 1.0 - (power / 20) * 0.7;
+        setGravityScale(body, gravScale);
+      }
+      updateStatusText();
+    }
+
+    if (e.key === 'c' || e.key === 'C') {
+      triggerSkill();
+    }
+  });
+
+  document.addEventListener('keyup', (e) => {
+    if (e.key === 'v' || e.key === 'V') {
+      vKeyHeld = false;
+      const body = getTargetBody();
+      if (!body) return;
+
+      if (cheatMode === 'boost') {
+        const power = parseInt(powerSlider.value);
+        const autoGravScale = 1.0 + (power / 20) * 0.5;
+        setGravityScale(body, autoGravScale);
+      } else {
+        resetPhysics(body);
+      }
+      updateStatusText();
+    }
+  });
+
+  function triggerSkill() {
+    if (targetMarbleId === null) return;
+    if (!window.roulette || !window.roulette.physics) return;
+    
+    const physics = window.roulette.physics;
+    if (typeof physics.impact === 'function') {
+      physics.impact(targetMarbleId);
+      statusDiv.textContent = '💥 밀치기 스킬 발동!';
+      statusDiv.classList.add('active');
+      setTimeout(() => updateStatusText(), 800);
+    }
+  }
+
   function stopCheat() {
     if (cheatInterval) {
       clearInterval(cheatInterval);
       cheatInterval = null;
     }
 
-    // 치트 중단 시 물리 속성을 원래대로(기본값 추론) 복구시켜 티나지 않게 유지합니다.
-    if (targetMarbleId !== null && window.roulette && window.roulette.physics) {
-       const body = window.roulette.physics.marbleMap[targetMarbleId];
-       if (body) {
-          if (typeof body.SetGravityScale === 'function') body.SetGravityScale(1.0);
-          try {
-             if (typeof body.GetFixtureList === 'function') {
-                let f = body.GetFixtureList();
-                // 무한루프 방지를 위해 첫 번째 Fixture(구슬 본체 형태)만 바로 적용합니다.
-                if (f) {
-                   if (typeof f.SetRestitution === 'function') f.SetRestitution(0.5); 
-                   if (typeof f.SetFriction === 'function') f.SetFriction(0.2); 
-                }
-             }
-          } catch(e) {}
-       }
-    }
+    const body = getTargetBody();
+    resetPhysics(body);
 
     cheatMode = null;
     targetMarbleId = null;
+    vKeyHeld = false;
     boostBtn.classList.remove('active');
     sabotageBtn.classList.remove('active');
     statusDiv.textContent = '대기 중...';
@@ -428,8 +507,16 @@
     }
     const rank = sorted.findIndex(m => m.id == targetMarbleId) + 1;
     const total = sorted.length;
-    const modeText = cheatMode === 'boost' ? '🚀 부스트' : '🐢 방해';
-    statusDiv.textContent = `${modeText} 중: ${target.name} (${rank}/${total}위)`;
+    
+    let modeText, keyHint;
+    if (cheatMode === 'boost') {
+      modeText = '🚀 부스트';
+      keyHint = vKeyHeld ? ' [V 강화중]' : ' (자동)';
+    } else {
+      modeText = '🐢 방해';
+      keyHint = vKeyHeld ? ' [V 감속중]' : ' (대기)';
+    }
+    statusDiv.textContent = `${modeText}${keyHint}: ${target.name} (${rank}/${total}위)`;
     statusDiv.classList.add('active');
   }
 
@@ -450,72 +537,40 @@
     }
 
     cheatInterval = setInterval(() => {
-      if (!window.roulette || !window.roulette.physics) return;
-      const physics = window.roulette.physics;
-      const body = physics.marbleMap[targetMarbleId];
+      const body = getTargetBody();
       if (!body) {
         stopCheat();
         statusDiv.textContent = '대상 구슬이 사라졌습니다';
         return;
       }
 
-      // 게임 시작 전이거나 시작 후 2초 이내면 치트 발동을 딜레이
       if (gameStartTime === 0 || Date.now() - gameStartTime < 2000) {
-        if (!statusDiv.textContent.includes('2초 전')) {
+        if (!statusDiv.textContent.includes('2초')) {
           statusDiv.textContent = `⏳ 대기 중 (${cheatMode === 'boost' ? '부스트' : '방해'} 작동 2초 전)`;
         }
         return;
       } else {
-        // 예약 상태 표시 지우고 본래 텍스트로 업데이트
         if (statusDiv.textContent.includes('2초 전')) {
           updateStatusText();
         }
       }
 
       const power = parseInt(powerSlider.value);
-      
-      let targetGravity = 1.0;
-      let targetRestitution = 0.5;
-      let targetFriction = 0.2;
 
-      if (mode === 'boost') {
-        // [부스트] 중력 1.0 ~ 2.5 : 매우 묵직해져서 포물선을 완벽히 유지하며 아주 빠르게 떨어짐 (자연스러움 극대화)
-        targetGravity = 1.0 + (power / 20) * 1.5;
-        // 슬라임처럼 부딪혀도 통통 튀며 시간을 낭비하지 않고 즉각 아래로 미끄러짐
-        targetRestitution = 0.05; 
-        targetFriction = 0.0;
-      } else {
-        // [사보타주] 중력 1.0 ~ 0.3 : 풍선처럼 물체 자체의 중력을 낮춰 혼자 둥둥 떠서 느리게 떨어지게 유도
-        targetGravity = 1.0 - (power / 20) * 0.7;
-        // 수퍼 탱탱볼처럼 핀에 닿기만 해도 하늘로 높게 튕겨올라 남들에게 자리를 다 양보함
-        targetRestitution = 1.3; 
-        targetFriction = 0.8;
+      if (mode === 'boost' && !vKeyHeld) {
+        // === 1등 모드 자동 부스트 (V키 미사용 시) ===
+        // 약한 중력 증가를 항상 유지 (파워의 약 1/3 수준)
+        const autoGravScale = 1.0 + (power / 20) * 0.5; // 1.0 ~ 1.5
+        setGravityScale(body, autoGravScale);
       }
+      // 꼴찌 모드는 자동 조작 없음 (V키 수동 전용)
+      // V키 눌렀을 때의 중력 조작은 keydown 핸들러가 담당
 
-      // 1. 개별 중력 조작
-      if (typeof body.SetGravityScale === 'function') {
-        body.SetGravityScale(targetGravity);
-      }
-
-      // 2. 재질 특성 조작
-      try {
-        if (typeof body.GetFixtureList === 'function') {
-          let f = body.GetFixtureList();
-          // GetNext() 무한루프에 의한 사이트 프리징 방지 (메인 구슬 Fixture 1개에만 적용)
-          if (f) {
-            if (typeof f.SetRestitution === 'function') f.SetRestitution(targetRestitution);
-            if (typeof f.SetFriction === 'function') f.SetFriction(targetFriction);
-          }
-        }
-      } catch (e) {
-        // Box2D WASM 구조에 따라 에러 방지
-      }
-
-      // 잠들기(Sleep) 상태 강제 해제 (물리 업데이트 지속)
+      // Sleep 방지
       if (typeof body.SetAwake === 'function') {
         body.SetAwake(true);
       }
-    }, 50);
+    }, 100);
 
     updateStatusText();
   }
