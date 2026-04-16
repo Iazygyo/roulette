@@ -348,7 +348,8 @@
   let cheatInterval = null;
   let cheatMode = null; // 'boost' or 'sabotage'
   let targetMarbleId = null;
-  let targetMarbleName = null; // 이름 기준 추적 (섞기 후에도 유지)
+  let targetMarbleName = null; // 치트 작용 중인 구슬 이름 (핵심 추적)
+  let uiSelectedName = null;   // 사용자가 드롭다운에서 클릭해둔 구슬 이름 (UI 유지용)
   let gameStartTime = 0;
   let vKeyHeld = false;
 
@@ -395,13 +396,35 @@
     });
   }
 
+  // 사용자가 드롭다운에서 구슬을 선택했을 때 이름 기억
+  select.addEventListener('change', () => {
+    const val = select.value;
+    if (val) {
+      const marbles = window.roulette ? window.roulette._marbles : [];
+      const m = marbles.find(x => x.id == val);
+      uiSelectedName = m ? m.name : null;
+    } else {
+      uiSelectedName = null;
+    }
+  });
+
   setInterval(() => {
     if (panel.classList.contains('show')) {
-      // 섞기 후 ID가 바뀌었을 수 있으므로 이름 기준으로 재탐색
+      // 섞기 후 ID가 바뀌었을 수 있으므로 치트 동작을 위해 이름 기준으로 재탐색
       resolveTargetByName();
       refreshMarbleList();
-      // 이름 기준으로 재탐색된 ID로 드롭다운 선택 유지
-      if (targetMarbleId !== null) select.value = targetMarbleId;
+      
+      // UI 드롭다운 선택 유지 (이름 기준 복원)
+      if (uiSelectedName) {
+        const marbles = window.roulette ? window.roulette._marbles : [];
+        const found = marbles.find(m => m.name === uiSelectedName);
+        if (found) {
+          select.value = found.id;
+        } else {
+          uiSelectedName = null; // 대상이 완전히 없어졌다면 초기화
+        }
+      }
+      
       updateStatusText();
     }
   }, 1000);
@@ -584,6 +607,7 @@
     const marbles = window.roulette ? window.roulette._marbles : [];
     const targetMarble = marbles.find(m => m.id === targetMarbleId);
     targetMarbleName = targetMarble ? targetMarble.name : null;
+    uiSelectedName = targetMarbleName; // UI 선택도 동기화
     cheatMode = mode;
 
     if (mode === 'boost') {
