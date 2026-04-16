@@ -348,6 +348,7 @@
   let cheatInterval = null;
   let cheatMode = null; // 'boost' or 'sabotage'
   let targetMarbleId = null;
+  let targetMarbleName = null; // 이름 기준 추적 (섞기 후에도 유지)
   let gameStartTime = 0;
   let vKeyHeld = false;
 
@@ -396,16 +397,37 @@
 
   setInterval(() => {
     if (panel.classList.contains('show')) {
-      const currentVal = select.value;
+      // 섞기 후 ID가 바뀌었을 수 있으므로 이름 기준으로 재탐색
+      resolveTargetByName();
       refreshMarbleList();
-      if (currentVal) select.value = currentVal;
+      // 이름 기준으로 재탐색된 ID로 드롭다운 선택 유지
+      if (targetMarbleId !== null) select.value = targetMarbleId;
       updateStatusText();
     }
   }, 1000);
 
+  // 이름 기준으로 대상 구슬의 ID를 재탐색 (섞기 후 ID 변경 대응)
+  function resolveTargetByName() {
+    if (!targetMarbleName) return;
+    if (!window.roulette || !window.roulette._marbles) return;
+    const marbles = window.roulette._marbles;
+    // 현재 ID로 찾은 구슬의 이름이 일치하면 그대로 유지
+    const current = marbles.find(m => m.id === targetMarbleId);
+    if (current && current.name === targetMarbleName) return;
+    // 일치하지 않으면 이름으로 재탐색
+    const found = marbles.find(m => m.name === targetMarbleName);
+    if (found) {
+      targetMarbleId = found.id;
+    }
+  }
+
   function getTargetBody() {
     if (targetMarbleId === null) return null;
     if (!window.roulette || !window.roulette.physics) return null;
+    // ID가 없으면 이름으로 재탐색 시도
+    if (!window.roulette.physics.marbleMap[targetMarbleId]) {
+      resolveTargetByName();
+    }
     return window.roulette.physics.marbleMap[targetMarbleId] || null;
   }
 
@@ -516,6 +538,7 @@
 
     cheatMode = null;
     targetMarbleId = null;
+    targetMarbleName = null;
     vKeyHeld = false;
     boostBtn.classList.remove('active');
     sabotageBtn.classList.remove('active');
@@ -557,6 +580,10 @@
       return;
     }
     targetMarbleId = parseInt(selectedId);
+    // 선택한 구슬의 이름을 저장하여 섞기 후에도 추적 가능하게 함
+    const marbles = window.roulette ? window.roulette._marbles : [];
+    const targetMarble = marbles.find(m => m.id === targetMarbleId);
+    targetMarbleName = targetMarble ? targetMarble.name : null;
     cheatMode = mode;
 
     if (mode === 'boost') {
