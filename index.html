@@ -420,6 +420,21 @@
     setGravityScale(body, 1.0);
   }
 
+  // 대상을 제외한 나머지 모든 구슬의 중력을 조작
+  function setOtherMarblesGravity(scale) {
+    if (!window.roulette || !window.roulette.physics) return;
+    const map = window.roulette.physics.marbleMap;
+    for (const id in map) {
+      if (parseInt(id) === targetMarbleId) continue;
+      setGravityScale(map[id], scale);
+    }
+  }
+
+  // 나머지 모든 구슬의 중력을 정상으로 복원
+  function resetOtherMarblesGravity() {
+    setOtherMarblesGravity(1.0);
+  }
+
   document.addEventListener('keydown', (e) => {
     if (e.repeat) return;
     if (!cheatMode || targetMarbleId === null) return;
@@ -432,11 +447,19 @@
       const power = parseInt(powerSlider.value);
 
       if (cheatMode === 'boost') {
+        // 대상: 강한 중력 부스트
         const gravScale = 1.0 + (power / 20) * 1.5;
         setGravityScale(body, gravScale);
+        // 나머지: 중력 감소 → 느리게 낙하
+        const othersGrav = 1.0 - (power / 20) * 0.4; // 1.0 ~ 0.6
+        setOtherMarblesGravity(othersGrav);
       } else if (cheatMode === 'sabotage') {
+        // 대상: 중력 감소 → 가벼워져서 체공시간 증가
         const gravScale = 1.0 - (power / 20) * 0.7;
         setGravityScale(body, gravScale);
+        // 나머지: 중력 증가 → 빠르게 낙하
+        const othersGrav = 1.0 + (power / 20) * 0.6; // 1.0 ~ 1.6
+        setOtherMarblesGravity(othersGrav);
       }
       updateStatusText();
     }
@@ -453,12 +476,15 @@
       if (!body) return;
 
       if (cheatMode === 'boost') {
+        // V키 떼면 자동 부스트 레벨로 복귀
         const power = parseInt(powerSlider.value);
         const autoGravScale = 1.0 + (power / 20) * 0.5;
         setGravityScale(body, autoGravScale);
       } else {
         resetPhysics(body);
       }
+      // V키 떼면 나머지 구슬은 정상으로 복원
+      resetOtherMarblesGravity();
       updateStatusText();
     }
   });
@@ -482,8 +508,11 @@
       cheatInterval = null;
     }
 
+    // 대상 구슬 물리 복원
     const body = getTargetBody();
     resetPhysics(body);
+    // 나머지 구슬 물리도 전부 복원
+    resetOtherMarblesGravity();
 
     cheatMode = null;
     targetMarbleId = null;
@@ -559,12 +588,16 @@
 
       if (mode === 'boost' && !vKeyHeld) {
         // === 1등 모드 자동 부스트 (V키 미사용 시) ===
-        // 약한 중력 증가를 항상 유지 (파워의 약 1/3 수준)
+        // 약한 중력 증가를 항상 유지
         const autoGravScale = 1.0 + (power / 20) * 0.5; // 1.0 ~ 1.5
         setGravityScale(body, autoGravScale);
       }
-      // 꼴찌 모드는 자동 조작 없음 (V키 수동 전용)
-      // V키 눌렀을 때의 중력 조작은 keydown 핸들러가 담당
+
+      if (mode === 'sabotage') {
+        // === 꼴찌 모드: 나머지 공들 살짝 무겁게 (V키 무관, 항상) ===
+        const othersAutoGrav = 1.0 + (power / 20) * 0.3; // 1.0 ~ 1.3
+        setOtherMarblesGravity(othersAutoGrav);
+      }
 
       // Sleep 방지
       if (typeof body.SetAwake === 'function') {
